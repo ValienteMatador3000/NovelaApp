@@ -1,7 +1,7 @@
 # api.py
 from fastapi import FastAPI
 from pydantic import BaseModel
-from motor_novela import ejecutar_motor
+from backend.motor_novela import ejecutar_motor
 import os
 
 app = FastAPI(
