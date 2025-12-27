@@ -130,26 +130,52 @@ def ejecutar_motor(NOVELA_CONFIG):
             NOVELA_CONFIG["CANTIDAD_CAPITULOS"] is not None
             and contador >= NOVELA_CONFIG["CANTIDAD_CAPITULOS"]
         ):
+def ejecutar_motor(config):
+
+    texto_volumen = f"NOVELA: {config['NOMBRE']}\n\n"
+
+    url_actual = config["URL_INICIAL"]
+    dominio = config["DOMINIO"]
+
+    contador = 0
+
+    # Extraer base y número
+    import re
+    m = re.search(r"/(\d+)_1\.html", url_actual)
+    if not m:
+        return {
+            "estado": "error",
+            "mensaje": "No se pudo extraer número de capítulo de la URL inicial"
+        }
+
+    cap_num = int(m.group(1))
+    base_url = url_actual.split(f"/{cap_num}_1.html")[0]
+
+    while True:
+        contador += 1
+        url = f"{base_url}/{cap_num}_1.html"
+
+        html = obtener_html(url)
+        if not html:
             break
 
-        url_actual = next_url
-        time.sleep(NOVELA_CONFIG["ESPERA_REQUEST"])
+        titulo, texto = extraer_datos(html, contador)
 
-    # =========================
+        texto_volumen += (
+            f"\n\n{'='*40}\n{titulo}\n{'='*40}\n\n{texto}\n"
+        )
+
+        if config["CANTIDAD_CAPITULOS"] and contador >= config["CANTIDAD_CAPITULOS"]:
+            break
+
+        cap_num += 1
+        time.sleep(config["ESPERA_REQUEST"])
+
     # Guardado
-    # =========================
-    cap_inicio = 1
-    cap_final = contador
-
     nombre_archivo = (
-        f"{NOVELA_CONFIG['NOMBRE']}_"
-        f"Caps_{cap_inicio}_a_{cap_final}.txt"
+        f"{config['NOMBRE']}_Caps_1_a_{contador}.txt"
     )
-
-    ruta_final = os.path.join(
-        NOVELA_CONFIG["CARPETA_SALIDA"],
-        nombre_archivo
-    )
+    ruta_final = os.path.join(config["CARPETA_SALIDA"], nombre_archivo)
 
     with open(ruta_final, "w", encoding="utf-8") as f:
         f.write(texto_volumen)
@@ -160,3 +186,5 @@ def ejecutar_motor(NOVELA_CONFIG):
         "archivo": nombre_archivo,
         "ruta": ruta_final
     }
+    
+    
