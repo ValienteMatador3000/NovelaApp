@@ -1,13 +1,32 @@
 # api.py
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from backend.motor_novela import ejecutar_motor
 import os
+
+# =========================
+# APP
+# =========================
 
 app = FastAPI(
     title="Motor de Novelas Web",
     description="API para scraping y traducción de novelas",
     version="1.0"
+)
+
+# =========================
+# 🔓 CORS (OBLIGATORIO)
+# =========================
+# Permite que index.html (file:// o GitHub Pages)
+# pueda comunicarse con Render
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],   # desarrollo (luego se puede restringir)
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # =========================
@@ -59,6 +78,7 @@ def procesar_novela(req: NovelaRequest):
     resultado = ejecutar_motor(config)
 
     return {
+        "estado": "ok",
         "mensaje": "Proceso completado",
         "resultado": resultado
     }
