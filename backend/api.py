@@ -94,3 +94,24 @@ def root():
         "estado": "ok",
         "mensaje": "API de novelas activa"
     }
+
+from fastapi.responses import FileResponse
+from fastapi import HTTPException
+
+# =========================
+# ENDPOINT DE DESCARGA
+# =========================
+
+@app.get("/descargar/{nombre}/{archivo}")
+def descargar_archivo(nombre: str, archivo: str):
+
+    ruta = os.path.join("salida", nombre, archivo)
+
+    if not os.path.exists(ruta):
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+
+    return FileResponse(
+        path=ruta,
+        filename=archivo,
+        media_type="text/plain"
+    )
