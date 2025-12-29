@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 motor_novela.py
-Motor reutilizable de scraping + traducción de novelas web
+Motor optimizado de scraping + traducción de novelas web
+Diseñado para Render / FastAPI
 """
 
 import os
@@ -14,8 +15,8 @@ from deep_translator import GoogleTranslator
 
 def ejecutar_motor(config):
     """
-    Ejecuta el scraping y traducción de una novela
-    usando navegación secuencial numérica.
+    Ejecuta scraping y traducción usando navegación secuencial por URL.
+    Traduce por BLOQUES para máxima velocidad.
     """
 
     # =========================
@@ -23,23 +24,25 @@ def ejecutar_motor(config):
     # =========================
     translator = GoogleTranslator(
         source=config.get("IDIOMA_ORIGEN", "auto"),
-        target=config["IDIOMA_DESTINO"]
+        target=config.get("IDIOMA_DESTINO", "es")
     )
+
+    os.makedirs(config["CARPETA_SALIDA"], exist_ok=True)
 
     def contiene_chino(texto):
         return bool(re.search(r'[\u4e00-\u9fff]', texto))
 
-    def traducir_bloque_robusto(texto, max_retries=3):
-        for _ in range(max_retries):
+    def traducir_bloque(texto, intentos=3):
+        if not texto.strip():
+            return ""
+        for _ in range(intentos):
             try:
-                if not texto.strip():
-                    return ""
                 traduccion = translator.translate(texto)
                 if contiene_chino(traduccion):
-                    raise Exception("Traducción inválida")
+                    raise Exception("Traducción incompleta")
                 return traduccion
             except Exception:
-                time.sleep(1.2)
+                time.sleep(1)
         return texto  # fallback seguro
 
     def obtener_html(url):
@@ -53,90 +56,88 @@ def ejecutar_motor(config):
                 "Referer": config["URL_LIBRO"]
             }
             r = requests.get(url, headers=headers, timeout=20)
-            r.encoding = config["SELECTORES"]["ENCODING"]
+            r.encoding = config["SELECTORES"].get("ENCODING", "utf-8")
             return r.text if r.status_code == 200 else None
         except Exception:
             return None
 
-    def extraer_datos(html, num_cap):
+    def extraer_capitulo(html, numero):
         soup = BeautifulSoup(html, "html.parser")
 
-        # Título
+        # --- Título ---
         h1 = soup.select_one(config["SELECTORES"]["TITULO"])
-        titulo_orig = h1.get_text(strip=True) if h1 else f"Capítulo {num_cap}"
-        titulo_es = traducir_bloque_robusto(titulo_orig)
+        titulo_original = h1.get_text(strip=True) if h1 else f"Capítulo {numero}"
+        titulo = traducir_bloque(titulo_original)
 
-        # Contenido
+        # --- Contenido ---
         cont = soup.select_one(config["SELECTORES"]["CONTENIDO"])
         if not cont:
-            return titulo_es, ""
+            return titulo, ""
 
-        for basura in cont.select("div.gadBlock, div.adBlock, script, ins, iframe"):
+        for basura in cont.select("script, ins, iframe, div.adBlock, div.gadBlock"):
             basura.decompose()
 
-        texto = ""
-        for p in cont.find_all("p"):
-            linea = p.get_text(strip=True)
-            if len(linea) < 2:
-                continue
-            texto += traducir_bloque_robusto(linea) + "\n\n"
-            time.sleep(config["ESPERA_TRAD"])
+        parrafos = [
+            p.get_text(strip=True)
+            for p in cont.find_all("p")
+            if len(p.get_text(strip=True)) > 1
+        ]
 
-        return titulo_es, texto
+        bloque = "\n\n".join(parrafos)
+        texto_traducido = traducir_bloque(bloque)
+
+        return titulo, texto_traducido
 
     # =========================
     # Proceso principal
     # =========================
-    os.makedirs(config["CARPETA_SALIDA"], exist_ok=True)
-
-    texto_volumen = f"NOVELA: {config['NOMBRE']}\n\n"
+    texto_final = f"NOVELA: {config['NOMBRE']}\n\n"
 
     url_inicial = config["URL_INICIAL"]
-    contador = 0
+    dominio = config["DOMINIO"]
 
     # Extraer número de capítulo inicial
-    match = re.search(r"/(\d+)_1\.html", url_inicial)
-    if not match:
+    m = re.search(r"/(\d+)_1\.html", url_inicial)
+    if not m:
         return {
             "estado": "error",
-            "mensaje": "No se pudo extraer el número de capítulo de la URL inicial"
+            "mensaje": "No se pudo extraer el número de capítulo desde la URL"
         }
 
-    cap_num = int(match.group(1))
-    base_url = url_inicial.split(f"/{cap_num}_1.html")[0]
+    cap_actual = int(m.group(1))
+    base_url = url_inicial.split(f"/{cap_actual}_1.html")[0]
+
+    limite = config.get("CANTIDAD_CAPITULOS")
+    contador = 0
 
     while True:
         contador += 1
-        url = f"{base_url}/{cap_num}_1.html"
+        url = f"{base_url}/{cap_actual}_1.html"
 
         html = obtener_html(url)
         if not html:
             break
 
-        titulo, contenido = extraer_datos(html, contador)
+        titulo, texto = extraer_capitulo(html, contador)
 
-        texto_volumen += (
-            f"\n\n{'=' * 40}\n"
-            f"{titulo}\n"
-            f"{'=' * 40}\n\n"
-            f"{contenido}\n"
+        texto_final += (
+            f"\n\n{'=' * 40}\n{titulo}\n{'=' * 40}\n\n{texto}\n"
         )
 
-        # Límite de capítulos
-        if (
-            config.get("CANTIDAD_CAPITULOS") is not None
-            and contador >= config["CANTIDAD_CAPITULOS"]
-        ):
+        if limite and contador >= limite:
             break
 
-        cap_num += 1
-        time.sleep(config["ESPERA_REQUEST"])
+        cap_actual += 1
+        time.sleep(config.get("ESPERA_REQUEST", 0.5))
 
+    # =========================
+    # Guardado
+    # =========================
     nombre_archivo = f"{config['NOMBRE']}_Caps_1_a_{contador}.txt"
     ruta_final = os.path.join(config["CARPETA_SALIDA"], nombre_archivo)
 
     with open(ruta_final, "w", encoding="utf-8") as f:
-        f.write(texto_volumen)
+        f.write(texto_final)
 
     return {
         "estado": "ok",
