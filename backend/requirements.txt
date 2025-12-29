@@ -4,5 +4,5 @@ requests
 beautifulsoup4
 deep-translator
 edge-tts
-pydub
+
 
