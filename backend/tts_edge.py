@@ -2,8 +2,6 @@
 import os
 import asyncio
 from edge_tts import Communicate
-from pydub import AudioSegment
-
 
 # =========================
 # DIVISIÓN SEGURA DEL TEXTO
@@ -28,57 +26,40 @@ def dividir_texto(texto, max_chars=1800):
 
 
 # =========================
-# GENERAR AUDIO EDGE (async)
+# GENERACIÓN ASYNC (EDGE TTS)
 # =========================
 
-async def generar_audio_edge(texto, salida_mp3, voz):
-    communicate = Communicate(texto, voz)
-    await communicate.save(salida_mp3)
-
-
-# =========================
-# FUNCIÓN NÚCLEO (AQUÍ)
-# =========================
-
-def generar_audiolibro(txt_path, salida_mp3, voz="es-MX-JorgeNeural"):
-    """
-    Genera un audiolibro MP3 a partir de un archivo TXT.
-    """
-
+async def _generar_audio_async(txt_path, salida_mp3, voz):
     if not os.path.exists(txt_path):
         raise FileNotFoundError("Archivo TXT no encontrado")
 
     with open(txt_path, "r", encoding="utf-8") as f:
-        texto = f.read()
+        texto = f.read().strip()
 
     bloques = dividir_texto(texto)
 
     if not bloques:
         raise Exception("El texto no contiene contenido válido")
 
-    audios_temporales = []
+    # Crear carpeta destino si no existe
+    os.makedirs(os.path.dirname(salida_mp3), exist_ok=True)
+
+    # Borramos el mp3 si ya existía
+    if os.path.exists(salida_mp3):
+        os.remove(salida_mp3)
 
     for i, bloque in enumerate(bloques, start=1):
-        print(f"🎧 Generando audio {i}/{len(bloques)}")
+        print(f"🎧 TTS bloque {i}/{len(bloques)}")
 
-        tmp_mp3 = salida_mp3.replace(".mp3", f"_part{i}.mp3")
-        asyncio.run(generar_audio_edge(bloque, tmp_mp3, voz))
-        audios_temporales.append(tmp_mp3)
+        communicate = Communicate(
+            bloque,
+            voz,
+            rate="+0%",
+            volume="+0%"
+        )
 
-    # =========================
-    # UNIR AUDIOS
-    # =========================
-
-    audio_final = AudioSegment.empty()
-
-    for a in audios_temporales:
-        audio_final += AudioSegment.from_mp3(a)
-
-    audio_final.export(salida_mp3, format="mp3")
-
-    # Limpieza
-    for a in audios_temporales:
-        os.remove(a)
+        # append=True → escribe todo en el MISMO mp3
+        await communicate.save(salida_mp3, append=True)
 
     return {
         "estado": "ok",
@@ -89,12 +70,14 @@ def generar_audiolibro(txt_path, salida_mp3, voz="es-MX-JorgeNeural"):
 
 
 # =========================
-# WRAPPER SÍNCRONO (FASTAPI)
+# WRAPPER SÍNCRONO (FASTAPI / JOBS)
 # =========================
 
 def generar_audio_sync(txt_path, salida_mp3, voz="es-MX-JorgeNeural"):
     """
-    Wrapper síncrono para usar desde FastAPI / jobs
+    Wrapper síncrono para FastAPI / sistema de jobs
     """
-    return generar_audiolibro(txt_path, salida_mp3, voz)
+    return asyncio.run(
+        _generar_audio_async(txt_path, salida_mp3, voz)
+    )
 
