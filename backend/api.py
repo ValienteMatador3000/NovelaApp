@@ -1,8 +1,12 @@
 # api.py
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
+
 from backend.motor_novela import ejecutar_motor
+from backend.jobs import crear_job, jobs
+
 import os
 
 # =========================
@@ -18,12 +22,10 @@ app = FastAPI(
 # =========================
 # 🔓 CORS (OBLIGATORIO)
 # =========================
-# Permite que index.html (file:// o GitHub Pages)
-# pueda comunicarse con Render
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # desarrollo (luego se puede restringir)
+    allow_origins=["*"],   # desarrollo
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -42,7 +44,7 @@ class NovelaRequest(BaseModel):
 
 
 # =========================
-# ENDPOINT PRINCIPAL
+# ENDPOINT PRINCIPAL (JOB)
 # =========================
 
 @app.post("/procesar")
@@ -75,28 +77,26 @@ def procesar_novela(req: NovelaRequest):
         "CARPETA_SALIDA": carpeta_salida
     }
 
-    resultado = ejecutar_motor(config)
+    job_id = crear_job(ejecutar_motor, config)
 
     return {
         "estado": "ok",
-        "mensaje": "Proceso completado",
-        "resultado": resultado
+        "mensaje": "Proceso iniciado en segundo plano",
+        "job_id": job_id
     }
 
 
 # =========================
-# ENDPOINT DE PRUEBA
+# ENDPOINT ESTADO DEL JOB
 # =========================
 
-@app.get("/")
-def root():
-    return {
-        "estado": "ok",
-        "mensaje": "API de novelas activa"
-    }
+@app.get("/estado/{job_id}")
+def estado_job(job_id: str):
+    if job_id not in jobs:
+        raise HTTPException(status_code=404, detail="Job no encontrado")
 
-from fastapi.responses import FileResponse
-from fastapi import HTTPException
+    return jobs[job_id]
+
 
 # =========================
 # ENDPOINT DE DESCARGA
@@ -115,3 +115,16 @@ def descargar_archivo(nombre: str, archivo: str):
         filename=archivo,
         media_type="text/plain"
     )
+
+
+# =========================
+# ENDPOINT DE PRUEBA
+# =========================
+
+@app.get("/")
+def root():
+    return {
+        "estado": "ok",
+        "mensaje": "API de novelas activa"
+    }
+
