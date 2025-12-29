@@ -5,6 +5,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from backend.motor_novela import ejecutar_motor
+from backend.tts_edge import generar_audio_sync
 from backend.jobs import crear_job, jobs
 
 import os
@@ -15,24 +16,24 @@ import os
 
 app = FastAPI(
     title="Motor de Novelas Web",
-    description="API para scraping y traducción de novelas",
-    version="1.0"
+    description="API para scraping, traducción y audiolibros",
+    version="1.1"
 )
 
 # =========================
-# 🔓 CORS (OBLIGATORIO)
+# 🔓 CORS
 # =========================
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # desarrollo
+    allow_origins=["*"],   # desarrollo / GitHub Pages
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # =========================
-# MODELO DE ENTRADA
+# MODELOS
 # =========================
 
 class NovelaRequest(BaseModel):
@@ -43,8 +44,13 @@ class NovelaRequest(BaseModel):
     capitulos: int = 5
 
 
+class AudioRequest(BaseModel):
+    nombre: str
+    archivo_txt: str
+
+
 # =========================
-# ENDPOINT PRINCIPAL (JOB)
+# ENDPOINT: PROCESAR NOVELA (JOB)
 # =========================
 
 @app.post("/procesar")
@@ -87,7 +93,7 @@ def procesar_novela(req: NovelaRequest):
 
 
 # =========================
-# ENDPOINT ESTADO DEL JOB
+# ENDPOINT: ESTADO DEL JOB
 # =========================
 
 @app.get("/estado/{job_id}")
@@ -99,7 +105,36 @@ def estado_job(job_id: str):
 
 
 # =========================
-# ENDPOINT DE DESCARGA
+# ENDPOINT: GENERAR AUDIOLIBRO (JOB)
+# =========================
+
+@app.post("/audiolibro")
+def generar_audiolibro(req: AudioRequest):
+
+    txt_path = os.path.join("salida", req.nombre, req.archivo_txt)
+
+    if not os.path.exists(txt_path):
+        raise HTTPException(status_code=404, detail="Archivo TXT no encontrado")
+
+    mp3_name = req.archivo_txt.replace(".txt", ".mp3")
+    mp3_path = os.path.join("salida", req.nombre, mp3_name)
+
+    job_id = crear_job(
+        generar_audio_sync,
+        txt_path,
+        mp3_path
+    )
+
+    return {
+        "estado": "ok",
+        "mensaje": "Generación de audiolibro iniciada",
+        "job_id": job_id,
+        "archivo_mp3": mp3_name
+    }
+
+
+# =========================
+# ENDPOINT: DESCARGA TXT
 # =========================
 
 @app.get("/descargar/{nombre}/{archivo}")
@@ -110,21 +145,25 @@ def descargar_archivo(nombre: str, archivo: str):
     if not os.path.exists(ruta):
         raise HTTPException(status_code=404, detail="Archivo no encontrado")
 
+    media_type = "text/plain"
+    if archivo.endswith(".mp3"):
+        media_type = "audio/mpeg"
+
     return FileResponse(
         path=ruta,
         filename=archivo,
-        media_type="text/plain"
+        media_type=media_type
     )
 
 
 # =========================
-# ENDPOINT DE PRUEBA
+# ENDPOINT: ROOT
 # =========================
 
 @app.get("/")
 def root():
     return {
         "estado": "ok",
-        "mensaje": "API de novelas activa"
+        "mensaje": "API de novelas y audiolibros activa"
     }
 
