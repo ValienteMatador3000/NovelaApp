@@ -37,3 +37,24 @@ def generar_audio_sync(txt_path, mp3_path):
     """
     asyncio.run(generar_audio(txt_path, mp3_path))
 
+
+#==================================
+
+def dividir_texto(texto, max_chars=1800):
+    bloques = []
+    actual = ""
+
+    for linea in texto.split("\n"):
+        if len(actual) + len(linea) > max_chars:
+            if actual.strip():
+                bloques.append(actual.strip())
+            actual = linea + "\n"
+        else:
+            actual += linea + "\n"
+
+    if actual.strip():
+        bloques.append(actual.strip())
+
+    return bloques
+
+
