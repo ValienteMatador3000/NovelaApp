@@ -5,56 +5,50 @@ from edge_tts import Communicate
 
 
 # =========================
-# DIVISIÓN SEGURA DEL TEXTO
+# LIMPIEZA DEL TEXTO
 # =========================
 
-def dividir_texto(texto, max_chars=1800):
-    bloques = []
-    actual = ""
-
-    for linea in texto.split("\n"):
-        if len(actual) + len(linea) > max_chars:
-            if actual.strip():
-                bloques.append(actual.strip())
-            actual = linea + "\n"
-        else:
-            actual += linea + "\n"
-
-    if actual.strip():
-        bloques.append(actual.strip())
-
-    return bloques
-
-
-# =========================
-# FUNCIÓN ASYNC INTERNA
-# =========================
-
-async def _generar_audio_async(bloques, salida_mp3, voz):
+def preparar_texto_para_tts(texto: str) -> str:
     """
-    Genera UN SOLO archivo MP3 con múltiples llamadas secuenciales
+    Limpia y adapta el texto para TTS largo
     """
-    communicate = Communicate("", voz)
+    # Pausas naturales
+    texto = texto.replace("\n\n", ".\n")
+    texto = texto.replace("\n", ".\n")
 
-    # Abrimos el archivo una sola vez
+    # Evitar símbolos raros
+    texto = texto.replace("=", "")
+    texto = texto.replace("—", ",")
+    texto = texto.replace("…", "...")
+
+    return texto.strip()
+
+
+# =========================
+# FUNCIÓN ASYNC ÚNICA
+# =========================
+
+async def _generar_audio_async(texto: str, salida_mp3: str, voz: str):
+    communicate = Communicate(texto, voz)
+
     with open(salida_mp3, "wb") as f:
-        for i, bloque in enumerate(bloques, start=1):
-            print(f"🎧 Generando audio bloque {i}/{len(bloques)}")
-
-            communicate.text = bloque
-
-            async for chunk in communicate.stream():
-                if chunk["type"] == "audio":
-                    f.write(chunk["data"])
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                f.write(chunk["data"])
 
 
 # =========================
-# FUNCIÓN NÚCLEO (SYNC)
+# FUNCIÓN PRINCIPAL
 # =========================
 
-def generar_audiolibro(txt_path, salida_mp3, voz="es-MX-JorgeNeural"):
+def generar_audiolibro(
+    txt_path: str,
+    salida_mp3: str,
+    voz: str = "es-MX-JorgeNeural"
+):
     """
-    Genera un audiolibro MP3 a partir de un TXT (EDGE TTS)
+    Genera un audiolibro MP3 usando Edge TTS
+    (un solo stream, estable en Render)
     """
 
     if not os.path.exists(txt_path):
@@ -63,17 +57,16 @@ def generar_audiolibro(txt_path, salida_mp3, voz="es-MX-JorgeNeural"):
     with open(txt_path, "r", encoding="utf-8") as f:
         texto = f.read()
 
-    bloques = dividir_texto(texto)
+    if not texto.strip():
+        raise Exception("El texto está vacío")
 
-    if not bloques:
-        raise Exception("El texto está vacío o no es válido")
+    texto_tts = preparar_texto_para_tts(texto)
 
     # Ejecutar async de forma segura
-    asyncio.run(_generar_audio_async(bloques, salida_mp3, voz))
+    asyncio.run(_generar_audio_async(texto_tts, salida_mp3, voz))
 
     return {
         "estado": "ok",
-        "bloques": len(bloques),
         "archivo_audio": os.path.basename(salida_mp3),
         "ruta": salida_mp3
     }
