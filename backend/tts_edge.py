@@ -3,6 +3,7 @@ import os
 import asyncio
 from edge_tts import Communicate
 
+
 # =========================
 # DIVISIÓN SEGURA DEL TEXTO
 # =========================
@@ -26,40 +27,49 @@ def dividir_texto(texto, max_chars=1800):
 
 
 # =========================
-# GENERACIÓN ASYNC (EDGE TTS)
+# FUNCIÓN ASYNC INTERNA
 # =========================
 
-async def _generar_audio_async(txt_path, salida_mp3, voz):
+async def _generar_audio_async(bloques, salida_mp3, voz):
+    """
+    Genera UN SOLO archivo MP3 con múltiples llamadas secuenciales
+    """
+    communicate = Communicate("", voz)
+
+    # Abrimos el archivo una sola vez
+    with open(salida_mp3, "wb") as f:
+        for i, bloque in enumerate(bloques, start=1):
+            print(f"🎧 Generando audio bloque {i}/{len(bloques)}")
+
+            communicate.text = bloque
+
+            async for chunk in communicate.stream():
+                if chunk["type"] == "audio":
+                    f.write(chunk["data"])
+
+
+# =========================
+# FUNCIÓN NÚCLEO (SYNC)
+# =========================
+
+def generar_audiolibro(txt_path, salida_mp3, voz="es-MX-JorgeNeural"):
+    """
+    Genera un audiolibro MP3 a partir de un TXT (EDGE TTS)
+    """
+
     if not os.path.exists(txt_path):
         raise FileNotFoundError("Archivo TXT no encontrado")
 
     with open(txt_path, "r", encoding="utf-8") as f:
-        texto = f.read().strip()
+        texto = f.read()
 
     bloques = dividir_texto(texto)
 
     if not bloques:
-        raise Exception("El texto no contiene contenido válido")
+        raise Exception("El texto está vacío o no es válido")
 
-    # Crear carpeta destino si no existe
-    os.makedirs(os.path.dirname(salida_mp3), exist_ok=True)
-
-    # Borramos el mp3 si ya existía
-    if os.path.exists(salida_mp3):
-        os.remove(salida_mp3)
-
-    for i, bloque in enumerate(bloques, start=1):
-        print(f"🎧 TTS bloque {i}/{len(bloques)}")
-
-        communicate = Communicate(
-            bloque,
-            voz,
-            rate="+0%",
-            volume="+0%"
-        )
-
-        # append=True → escribe todo en el MISMO mp3
-        await communicate.save(salida_mp3, append=True)
+    # Ejecutar async de forma segura
+    asyncio.run(_generar_audio_async(bloques, salida_mp3, voz))
 
     return {
         "estado": "ok",
@@ -70,14 +80,9 @@ async def _generar_audio_async(txt_path, salida_mp3, voz):
 
 
 # =========================
-# WRAPPER SÍNCRONO (FASTAPI / JOBS)
+# WRAPPER FASTAPI
 # =========================
 
 def generar_audio_sync(txt_path, salida_mp3, voz="es-MX-JorgeNeural"):
-    """
-    Wrapper síncrono para FastAPI / sistema de jobs
-    """
-    return asyncio.run(
-        _generar_audio_async(txt_path, salida_mp3, voz)
-    )
+    return generar_audiolibro(txt_path, salida_mp3, voz)
 
