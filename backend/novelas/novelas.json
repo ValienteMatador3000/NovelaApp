@@ -1,0 +1,55 @@
+{
+  "kai_ju_liufang": {
+    "titulo": "开局流放我薅羊毛屯物资富可敌国",
+    "titulo_es": "Exiliado desde el inicio: acumulando recursos hasta ser invencible",
+    "genero": "Supervivencia, acumulación de recursos",
+    "idioma": "zh-CN",
+    "sitio": "quanben.io",
+    "descripcion": "Un protagonista es exiliado desde el inicio y aprovecha la situación para acumular recursos y volverse extremadamente poderoso."
+  },
+
+  "lihun_tianjiang": {
+    "titulo": "离婚之后：天降绝色未婚妻",
+    "titulo_es": "Después del divorcio: una prometida perfecta cae del cielo",
+    "genero": "Romance urbano",
+    "idioma": "zh-CN",
+    "sitio": "quanben.io",
+    "descripcion": "Tras un divorcio inesperado, la vida del protagonista cambia cuando aparece una mujer extraordinaria."
+  },
+
+  "tianhou_laopo": {
+    "titulo": "天后老婆狂卷工作，我躺平被全网直播",
+    "titulo_es": "Mi esposa superestrella trabaja sin parar mientras yo descanso y soy transmitido en vivo",
+    "genero": "Romance, comedia, vida moderna",
+    "idioma": "zh-CN",
+    "sitio": "quanben.io",
+    "descripcion": "Una comedia moderna donde el contraste entre una esposa hiperactiva y un esposo relajado se vuelve viral."
+  },
+
+  "wujia_bianzhi": {
+    "titulo": "物价贬值百万倍，神豪本色",
+    "titulo_es": "Los precios caen un millón de veces: el verdadero magnate despierta",
+    "genero": "Sistema, riqueza, fantasía urbana",
+    "idioma": "zh-CN",
+    "sitio": "quanben.io",
+    "descripcion": "El mundo sufre una distorsión económica extrema y el protagonista se convierte en un magnate absoluto."
+  },
+
+  "moshi_jinhua": {
+    "titulo": "末世万物进化：开局豢养数万猛虎",
+    "titulo_es": "Evolución total del apocalipsis: criando decenas de miles de tigres",
+    "genero": "Apocalipsis, evolución, bestias",
+    "idioma": "zh-CN",
+    "sitio": "quanben.io",
+    "descripcion": "En un mundo postapocalíptico donde todo evoluciona, el protagonista controla un ejército de bestias."
+  },
+
+  "guwan_huangjintong": {
+    "titulo": "古玩黄金瞳",
+    "titulo_es": "Antigüedades y la pupila dorada",
+    "genero": "Antigüedades, poder ocular, urbano",
+    "idioma": "zh-CN",
+    "sitio": "quanben.io",
+    "descripcion": "Un joven obtiene un poder especial en los ojos que le permite identificar tesoros y antigüedades."
+  }
+}
