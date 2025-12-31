@@ -9,6 +9,7 @@ from backend.tts_edge import generar_audio_sync
 from backend.jobs import crear_job, jobs
 
 import os
+import json
 
 # =========================
 # APP
@@ -47,6 +48,43 @@ class NovelaRequest(BaseModel):
 class AudioRequest(BaseModel):
     nombre: str
     archivo_txt: str
+
+
+# =========================
+# ENDPOINT: CATÁLOGO DE NOVELAS
+# =========================
+
+@app.get("/novelas")
+def listar_novelas():
+    """
+    Devuelve el catálogo de novelas disponibles
+    """
+
+    ruta_catalogo = os.path.join(
+        os.path.dirname(__file__),
+        "novelas",
+        "catalogo.json"
+    )
+
+    if not os.path.exists(ruta_catalogo):
+        raise HTTPException(
+            status_code=500,
+            detail="Archivo catalogo.json no encontrado"
+        )
+
+    try:
+        with open(ruta_catalogo, "r", encoding="utf-8") as f:
+            catalogo = json.load(f)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error leyendo catalogo.json: {str(e)}"
+        )
+
+    return {
+        "estado": "ok",
+        "novelas": catalogo
+    }
 
 
 # =========================
@@ -134,7 +172,7 @@ def generar_audiolibro(req: AudioRequest):
 
 
 # =========================
-# ENDPOINT: DESCARGA TXT
+# ENDPOINT: DESCARGA TXT / MP3
 # =========================
 
 @app.get("/descargar/{nombre}/{archivo}")
