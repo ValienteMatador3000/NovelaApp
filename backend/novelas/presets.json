@@ -1,0 +1,61 @@
+{
+  "kai_ju_liufang": {
+    "sitio": "quanben.io",
+    "dominio": "https://www.quanben.io",
+    "url_libro": "https://www.quanben.io/n/kai-juliufang/",
+    "url_capitulo": "https://www.quanben.io/n/kai-juliufang/{cap}.html",
+    "selector_titulo": "h1",
+    "selector_contenido": "div.article-content",
+    "encoding": "utf-8"
+  },
+
+  "lihun_tianjiang": {
+    "sitio": "quanben.io",
+    "dominio": "https://www.quanben.io",
+    "url_libro": "https://www.quanben.io/n/lihun-zhihou/",
+    "url_capitulo": "https://www.quanben.io/n/lihun-zhihou/{cap}.html",
+    "selector_titulo": "h1",
+    "selector_contenido": "div.article-content",
+    "encoding": "utf-8"
+  },
+
+  "tianhou_laopo": {
+    "sitio": "quanben.io",
+    "dominio": "https://www.quanben.io",
+    "url_libro": "https://www.quanben.io/n/tianhou-laopo/",
+    "url_capitulo": "https://www.quanben.io/n/tianhou-laopo/{cap}.html",
+    "selector_titulo": "h1",
+    "selector_contenido": "div.article-content",
+    "encoding": "utf-8"
+  },
+
+  "wujia_bianzhi": {
+    "sitio": "quanben.io",
+    "dominio": "https://www.quanben.io",
+    "url_libro": "https://www.quanben.io/n/wujia-bianzhi/",
+    "url_capitulo": "https://www.quanben.io/n/wujia-bianzhi/{cap}.html",
+    "selector_titulo": "h1",
+    "selector_contenido": "div.article-content",
+    "encoding": "utf-8"
+  },
+
+  "moshi_jinhua": {
+    "sitio": "quanben.io",
+    "dominio": "https://www.quanben.io",
+    "url_libro": "https://www.quanben.io/n/moshi-jinhua/",
+    "url_capitulo": "https://www.quanben.io/n/moshi-jinhua/{cap}.html",
+    "selector_titulo": "h1",
+    "selector_contenido": "div.article-content",
+    "encoding": "utf-8"
+  },
+
+  "guwan_huangjintong": {
+    "sitio": "quanben.io",
+    "dominio": "https://www.quanben.io",
+    "url_libro": "https://www.quanben.io/n/guwan-huangjintong/",
+    "url_capitulo": "https://www.quanben.io/n/guwan-huangjintong/{cap}.html",
+    "selector_titulo": "h1",
+    "selector_contenido": "div.article-content",
+    "encoding": "utf-8"
+  }
+}
