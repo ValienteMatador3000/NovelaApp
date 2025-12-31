@@ -28,7 +28,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],   # GitHub Pages / desarrollo
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -52,7 +52,7 @@ class AudioRequest(BaseModel):
 
 
 # =========================
-# CATÁLOGO DE NOVELAS
+# ENDPOINT: CATÁLOGO DE NOVELAS
 # =========================
 
 @app.get("/novelas")
@@ -64,23 +64,33 @@ def listar_novelas():
     )
 
     if not os.path.exists(ruta_catalogo):
-        raise HTTPException(500, "catalogo.json no encontrado")
+        raise HTTPException(
+            status_code=500,
+            detail="Archivo catalogo.json no encontrado"
+        )
 
     try:
         with open(ruta_catalogo, "r", encoding="utf-8") as f:
             catalogo = json.load(f)
     except Exception as e:
-        raise HTTPException(500, f"Error leyendo catalogo.json: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error leyendo catalogo.json: {str(e)}"
+        )
 
-    return {"estado": "ok", "novelas": catalogo}
+    return {
+        "estado": "ok",
+        "novelas": catalogo
+    }
 
 
 # =========================
-# PROCESAR NOVELA (JOB)
+# ENDPOINT: PROCESAR NOVELA (JOB)
 # =========================
 
 @app.post("/procesar")
 def procesar_novela(req: NovelaRequest):
+
     carpeta_salida = os.path.join("salida", req.nombre)
     os.makedirs(carpeta_salida, exist_ok=True)
 
@@ -112,66 +122,99 @@ def procesar_novela(req: NovelaRequest):
 
 
 # =========================
-# ESTADO DEL JOB
+# ENDPOINT: ESTADO DEL JOB
 # =========================
 
 @app.get("/estado/{job_id}")
 def estado_job(job_id: str):
     if job_id not in jobs:
-        raise HTTPException(404, "Job no encontrado")
+        raise HTTPException(status_code=404, detail="Job no encontrado")
+
     return jobs[job_id]
 
 
 # =========================
-# GENERAR AUDIOLIBRO (JOB)
+# ENDPOINT: GENERAR AUDIOLIBRO (JOB)
 # =========================
 
 @app.post("/audiolibro")
 def generar_audiolibro(req: AudioRequest):
+
     txt_path = os.path.join("salida", req.nombre, req.archivo_txt)
 
     if not os.path.exists(txt_path):
-        raise HTTPException(404, "Archivo TXT no encontrado")
+        raise HTTPException(status_code=404, detail="Archivo TXT no encontrado")
 
     mp3_name = req.archivo_txt.replace(".txt", ".mp3")
     mp3_path = os.path.join("salida", req.nombre, mp3_name)
 
-    job_id = crear_job(generar_audio_sync, txt_path, mp3_path)
+    job_id = crear_job(
+        generar_audio_sync,
+        txt_path,
+        mp3_path
+    )
 
     return {
         "estado": "ok",
-        "mensaje": "Audiolibro en proceso",
+        "mensaje": "Generación de audiolibro iniciada",
         "job_id": job_id,
         "archivo_mp3": mp3_name
     }
 
 
 # =========================
-# DESCARGA SEGURA POR RUTA
+# ENDPOINT: DESCARGA POR NOMBRE
 # =========================
 
-@app.get("/descargar_ruta")
-def descargar_por_ruta(ruta: str = Query(...)):
-    ruta = unquote(ruta)
-    ruta = os.path.normpath(ruta)
+@app.get("/descargar/{nombre}/{archivo}")
+def descargar_archivo(nombre: str, archivo: str):
 
-    if not ruta.startswith("salida"):
-        raise HTTPException(400, "Ruta inválida")
+    ruta = os.path.join("salida", nombre, archivo)
 
     if not os.path.exists(ruta):
-        raise HTTPException(404, "Archivo no encontrado")
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
 
-    media_type = "audio/mpeg" if ruta.endswith(".mp3") else "text/plain"
+    media_type = "audio/mpeg" if archivo.endswith(".mp3") else "text/plain"
 
     return FileResponse(
         path=ruta,
-        filename=os.path.basename(ruta),
+        filename=archivo,
         media_type=media_type
     )
 
 
 # =========================
-# ROOT
+# ENDPOINT: DESCARGA POR RUTA (SEGURA - FIX DEFINITIVO)
+# =========================
+
+@app.get("/descargar_ruta")
+def descargar_por_ruta(ruta: str = Query(...)):
+
+    # Directorio base permitido
+    base_dir = os.path.abspath("salida")
+
+    # Decodificar y normalizar
+    ruta = unquote(ruta)
+    ruta_abs = os.path.abspath(ruta)
+
+    # Seguridad REAL
+    if not ruta_abs.startswith(base_dir):
+        raise HTTPException(status_code=400, detail="Ruta inválida")
+
+    if not os.path.exists(ruta_abs):
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+
+    media_type = "audio/mpeg" if ruta_abs.endswith(".mp3") else "text/plain"
+
+    return FileResponse(
+        path=ruta_abs,
+        filename=os.path.basename(ruta_abs),
+        media_type=media_type
+    )
+
+
+# =========================
+# ENDPOINT: ROOT
 # =========================
 
 @app.get("/")
