@@ -223,4 +223,3 @@ def root():
         "estado": "ok",
         "mensaje": "API de novelas y audiolibros activa"
     }
-
