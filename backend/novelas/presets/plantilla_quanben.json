@@ -1,0 +1,58 @@
+{
+  "id": "plantilla_quanben",
+  "titulo": "PLANTILLA QUANBEN",
+  "autor": "",
+  "descripcion": "Plantilla base para novelas alojadas en quanben.io / novel543.com",
+
+  "sitio": {
+    "nombre": "quanben",
+    "dominio": "https://www.quanben.io"
+  },
+
+  "navegacion": {
+    "metodo": "SECUENCIAL_NUMERICA",
+    "soporta_capitulo_inicial": true,
+    "soporta_limite_capitulos": true
+  },
+
+  "urls": {
+    "libro": "",
+    "capitulo_patron": "https://www.quanben.io/n/{SLUG}/{CAP}_1.html"
+  },
+
+  "selectores": {
+    "titulo": "div.chapter-content > h1",
+    "contenido": "div.chapter-content div.content",
+    "basura": [
+      "script",
+      "iframe",
+      "ins",
+      "div.gadBlock",
+      "div.adBlock"
+    ]
+  },
+
+  "encoding": "utf-8",
+
+  "idiomas": {
+    "origen": "zh-TW",
+    "destino": "es"
+  },
+
+  "tts": {
+    "voz": "es-MX-JorgeNeural",
+    "max_chars_bloque": 1800
+  },
+
+  "timing": {
+    "espera_request": 1.2,
+    "espera_traduccion": 0.5
+  },
+
+  "notas": [
+    "HTML estático",
+    "Sin JavaScript dinámico",
+    "Compatible con scraping ético",
+    "Ideal para audiolibros largos"
+  ]
+}
