@@ -225,6 +225,20 @@ def descargar_por_ruta(ruta: str):
         media_type=media_type
     )
 
+from fastapi import Query
+
+@app.get("/descargar_ruta")
+def descargar_por_ruta(ruta: str = Query(...)):
+    if not ruta.startswith("salida/"):
+        raise HTTPException(status_code=400, detail="Ruta inválida")
+
+    if not os.path.exists(ruta):
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+
+    return FileResponse(
+        path=ruta,
+        filename=os.path.basename(ruta)
+    )
 
 # =========================
 # ENDPOINT: ROOT
