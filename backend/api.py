@@ -8,12 +8,17 @@ from backend.motor_novela import ejecutar_motor
 from backend.tts_edge import generar_audio_sync
 from backend.jobs import crear_job, jobs
 
-import os, json
+import os
+import json
+
+# =========================
+# APP
+# =========================
 
 app = FastAPI(
     title="Motor de Novelas Web",
     description="API para scraping, traducción y audiolibros",
-    version="1.3"
+    version="1.4"
 )
 
 app.add_middleware(
@@ -22,6 +27,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+BASE_DIR = os.path.abspath("salida")
+
+# =========================
+# MODELOS
+# =========================
 
 class NovelaRequest(BaseModel):
     nombre: str
@@ -53,7 +64,7 @@ def listar_novelas():
 
 @app.post("/procesar")
 def procesar(req: NovelaRequest):
-    carpeta = os.path.join("salida", req.nombre)
+    carpeta = os.path.join(BASE_DIR, req.nombre)
     os.makedirs(carpeta, exist_ok=True)
 
     config = {
@@ -79,24 +90,25 @@ def estado(job_id: str):
     return jobs[job_id]
 
 # =========================
-# DESCARGA POR RUTA REAL
+# DESCARGA SEGURA (FIX DEFINITIVO)
 # =========================
 
 @app.get("/descargar")
 def descargar(ruta: str = Query(...)):
-    ruta = os.path.normpath(ruta)
+    ruta_abs = os.path.abspath(os.path.normpath(ruta))
 
-    if not ruta.startswith("salida"):
-        raise HTTPException(400, "Ruta inválida")
+    # 🔐 Verificación REAL de seguridad
+    if os.path.commonpath([ruta_abs, BASE_DIR]) != BASE_DIR:
+        raise HTTPException(status_code=400, detail="Ruta inválida")
 
-    if not os.path.exists(ruta):
-        raise HTTPException(404, "Archivo no encontrado")
+    if not os.path.exists(ruta_abs):
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
 
-    media = "audio/mpeg" if ruta.endswith(".mp3") else "text/plain"
+    media = "audio/mpeg" if ruta_abs.endswith(".mp3") else "text/plain"
 
     return FileResponse(
-        path=ruta,
-        filename=os.path.basename(ruta),
+        path=ruta_abs,
+        filename=os.path.basename(ruta_abs),
         media_type=media
     )
 
@@ -106,16 +118,20 @@ def descargar(ruta: str = Query(...)):
 
 @app.post("/audiolibro")
 def audiolibro(req: AudioRequest):
-    txt = os.path.join("salida", req.nombre, req.archivo_txt)
+    txt = os.path.join(BASE_DIR, req.nombre, req.archivo_txt)
     if not os.path.exists(txt):
         raise HTTPException(404, "TXT no encontrado")
 
     mp3 = txt.replace(".txt", ".mp3")
     job_id = crear_job(generar_audio_sync, txt, mp3)
 
-    return {"estado": "ok", "job_id": job_id, "archivo_mp3": os.path.basename(mp3)}
+    return {
+        "estado": "ok",
+        "job_id": job_id,
+        "archivo_mp3": os.path.basename(mp3)
+    }
 
 @app.get("/")
 def root():
-    return {"estado": "ok"}
+    return {"estado": "ok", "mensaje": "API activa"}
 
