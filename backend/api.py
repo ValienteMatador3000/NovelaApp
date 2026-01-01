@@ -1,5 +1,5 @@
 # api.py
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -10,7 +10,6 @@ from backend.jobs import crear_job, jobs
 
 import os
 import json
-from urllib.parse import unquote
 
 # =========================
 # APP
@@ -28,7 +27,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # GitHub Pages / desarrollo
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -52,47 +51,41 @@ class AudioRequest(BaseModel):
 
 
 # =========================
-# ENDPOINT: CATÁLOGO DE NOVELAS
+# ENDPOINT: CATÁLOGO
 # =========================
 
 @app.get("/novelas")
 def listar_novelas():
-    ruta_catalogo = os.path.join(
+    ruta = os.path.join(
         os.path.dirname(__file__),
         "novelas",
         "catalogo.json"
     )
 
-    if not os.path.exists(ruta_catalogo):
-        raise HTTPException(
-            status_code=500,
-            detail="Archivo catalogo.json no encontrado"
-        )
+    if not os.path.exists(ruta):
+        raise HTTPException(500, "catalogo.json no encontrado")
 
     try:
-        with open(ruta_catalogo, "r", encoding="utf-8") as f:
-            catalogo = json.load(f)
+        with open(ruta, "r", encoding="utf-8") as f:
+            data = json.load(f)
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error leyendo catalogo.json: {str(e)}"
-        )
+        raise HTTPException(500, f"Error leyendo catalogo.json: {e}")
 
     return {
         "estado": "ok",
-        "novelas": catalogo
+        "novelas": data
     }
 
 
 # =========================
-# ENDPOINT: PROCESAR NOVELA (JOB)
+# ENDPOINT: PROCESAR NOVELA
 # =========================
 
 @app.post("/procesar")
 def procesar_novela(req: NovelaRequest):
 
-    carpeta_salida = os.path.join("salida", req.nombre)
-    os.makedirs(carpeta_salida, exist_ok=True)
+    carpeta = os.path.join("salida", req.nombre)
+    os.makedirs(carpeta, exist_ok=True)
 
     config = {
         "NOMBRE": req.nombre,
@@ -109,117 +102,86 @@ def procesar_novela(req: NovelaRequest):
         "IDIOMA_DESTINO": "es",
         "ESPERA_REQUEST": 1.5,
         "ESPERA_TRAD": 0.6,
-        "CARPETA_SALIDA": carpeta_salida
+        "CARPETA_SALIDA": carpeta
     }
 
     job_id = crear_job(ejecutar_motor, config)
 
     return {
         "estado": "ok",
-        "mensaje": "Proceso iniciado en segundo plano",
         "job_id": job_id
     }
 
 
 # =========================
-# ENDPOINT: ESTADO DEL JOB
+# ENDPOINT: ESTADO JOB
 # =========================
 
 @app.get("/estado/{job_id}")
 def estado_job(job_id: str):
     if job_id not in jobs:
-        raise HTTPException(status_code=404, detail="Job no encontrado")
+        raise HTTPException(404, "Job no encontrado")
 
     return jobs[job_id]
 
 
 # =========================
-# ENDPOINT: GENERAR AUDIOLIBRO (JOB)
+# ENDPOINT: DESCARGA TXT / MP3
+# =========================
+
+@app.get("/descargar/{nombre}/{archivo}")
+def descargar(nombre: str, archivo: str):
+
+    ruta = os.path.join("salida", nombre, archivo)
+
+    if not os.path.exists(ruta):
+        raise HTTPException(404, "Archivo no encontrado")
+
+    media = "audio/mpeg" if archivo.endswith(".mp3") else "text/plain"
+
+    return FileResponse(
+        path=ruta,
+        filename=archivo,
+        media_type=media
+    )
+
+
+# =========================
+# ENDPOINT: AUDIOLIBRO
 # =========================
 
 @app.post("/audiolibro")
 def generar_audiolibro(req: AudioRequest):
 
-    txt_path = os.path.join("salida", req.nombre, req.archivo_txt)
+    txt = os.path.join("salida", req.nombre, req.archivo_txt)
 
-    if not os.path.exists(txt_path):
-        raise HTTPException(status_code=404, detail="Archivo TXT no encontrado")
+    if not os.path.exists(txt):
+        raise HTTPException(404, "Archivo TXT no encontrado")
 
-    mp3_name = req.archivo_txt.replace(".txt", ".mp3")
-    mp3_path = os.path.join("salida", req.nombre, mp3_name)
+    mp3 = req.archivo_txt.replace(".txt", ".mp3")
+    mp3_path = os.path.join("salida", req.nombre, mp3)
 
     job_id = crear_job(
         generar_audio_sync,
-        txt_path,
+        txt,
         mp3_path
     )
 
     return {
         "estado": "ok",
-        "mensaje": "Generación de audiolibro iniciada",
         "job_id": job_id,
-        "archivo_mp3": mp3_name
+        "archivo_mp3": mp3
     }
 
 
 # =========================
-# ENDPOINT: DESCARGA POR NOMBRE
-# =========================
-
-@app.get("/descargar/{nombre}/{archivo}")
-def descargar_archivo(nombre: str, archivo: str):
-
-    ruta = os.path.join("salida", nombre, archivo)
-
-    if not os.path.exists(ruta):
-        raise HTTPException(status_code=404, detail="Archivo no encontrado")
-
-    media_type = "audio/mpeg" if archivo.endswith(".mp3") else "text/plain"
-
-    return FileResponse(
-        path=ruta,
-        filename=archivo,
-        media_type=media_type
-    )
-
-
-# =========================
-# ENDPOINT: DESCARGA POR RUTA (SEGURA - FIX DEFINITIVO)
-# =========================
-
-@app.get("/descargar_ruta")
-def descargar_por_ruta(ruta: str = Query(...)):
-
-    # Directorio base permitido
-    base_dir = os.path.abspath("salida")
-
-    # Decodificar y normalizar
-    ruta = unquote(ruta)
-    ruta_abs = os.path.abspath(ruta)
-
-    # Seguridad REAL
-    if not ruta_abs.startswith(base_dir):
-        raise HTTPException(status_code=400, detail="Ruta inválida")
-
-    if not os.path.exists(ruta_abs):
-        raise HTTPException(status_code=404, detail="Archivo no encontrado")
-
-    media_type = "audio/mpeg" if ruta_abs.endswith(".mp3") else "text/plain"
-
-    return FileResponse(
-        path=ruta_abs,
-        filename=os.path.basename(ruta_abs),
-        media_type=media_type
-    )
-
-
-# =========================
-# ENDPOINT: ROOT
+# ROOT
 # =========================
 
 @app.get("/")
 def root():
     return {
         "estado": "ok",
-        "mensaje": "API de novelas y audiolibros activa"
+        "mensaje": "API activa"
     }
+
