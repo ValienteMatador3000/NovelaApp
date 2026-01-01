@@ -135,3 +135,21 @@ def audiolibro(req: AudioRequest):
 def root():
     return {"estado": "ok", "mensaje": "API activa"}
 
+
+# =========================
+# ENDPOINT DEBUG: LISTAR ARCHIVOS EN /salida
+# =========================
+
+@app.get("/debug/ls")
+def debug_ls():
+    resultado = {}
+
+    if not os.path.exists("salida"):
+        return {"salida": "NO EXISTE"}
+
+    for root, dirs, files in os.walk("salida"):
+        resultado[root] = files
+
+    return resultado
+
+
